@@ -1,5 +1,5 @@
-import { ChildProcess, spawn } from 'child_process';
-import { EventEmitter } from 'events';
+import { ChildProcess, spawn } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 
 export interface MuxerOptions {
     url?: string;
@@ -30,16 +30,10 @@ export class Mpeg1Muxer extends EventEmitter {
 
         let inputFfmpegArgs: Array<string> = [];
         if (options.ffmpegArgs) {
-            inputFfmpegArgs = Object.keys(options.ffmpegArgs).map(k => {
-                if (options.ffmpegArgs?.[k]) {
-                    return [k, options.ffmpegArgs[k]];
-                } else {
-                    return [k];
-                }
-            }).flat();
+            inputFfmpegArgs = Object.keys(options.ffmpegArgs).flatMap(key => (options.ffmpegArgs?.[key] ? [key, options.ffmpegArgs[key]] : [key]));
         }
 
-        let spawnFfmpegArgs: Array<string> = [
+        const spawnFfmpegArgs: Array<string> = [
             '-i',
             options.url,
             '-f',
@@ -47,7 +41,7 @@ export class Mpeg1Muxer extends EventEmitter {
             '-vcodec',
             'mpeg1video',
             ...inputFfmpegArgs,
-            '-'
+            '-',
         ];
 
         this.streamProcess = spawn(options.ffmpegPath, spawnFfmpegArgs, { detached: options.shouldDetached });
@@ -59,12 +53,12 @@ export class Mpeg1Muxer extends EventEmitter {
             this.emit('mpeg1data', data);
         });
 
-        this.streamProcess.stderr?.on('data', data => {
-            if (options.debug) {
+        this.streamProcess.stderr?.on('data', (data: string | Uint8Array) => {
+            if (options.debug ?? false) {
                 process.stderr.write(data);
             }
-            if ((data as Buffer).toString('utf-8').indexOf('Server returned') >= 0) {
-                let errorOutputLine: string = (data as Buffer).toString('utf-8');
+            if ((data as Buffer).toString('utf-8').includes('Server returned')) {
+                const errorOutputLine: string = (data as Buffer).toString('utf-8');
                 this.emit('liveErr', errorOutputLine.substr(errorOutputLine.indexOf('Server returned')));
                 this.stop();
             }

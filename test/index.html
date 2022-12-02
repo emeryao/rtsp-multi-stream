@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hans">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -14,7 +14,6 @@
         canvas {
             width: 90%;
         }
-
     </style>
     <script>
         let player;
@@ -34,9 +33,7 @@
 
                         data.socket.onclose = closeEvent => {
                             console.log('socket onclose', closeEvent);
-                            if (closeEvent.reason) {
-                                alert(closeEvent.reason);
-                            }
+                            alert(closeEvent.reason ? closeEvent.reason : 'socket closed');
                         };
 
                         data.socket.onerror = error => {
@@ -76,9 +73,8 @@
         }
 
     </script>
-    <input type="text" id="url-input" value="rtsp://192.168.9.11:554/live" style="width: 63%;">
-    <button onclick="goLive();">GO</button>
-    <!-- <canvas id="v-host" style="width:90%;"></canvas> -->
+    <input type="text" id="url-input" value="rtsp://192.168.1.1:554/live" style="width: 50%;">
+    <button onclick="goLive();">Go Live</button>
 </body>
 
 </html>
