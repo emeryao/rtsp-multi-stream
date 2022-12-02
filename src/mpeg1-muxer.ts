@@ -34,11 +34,13 @@ export class Mpeg1Muxer extends EventEmitter {
         }
 
         const spawnFfmpegArgs: Array<string> = [
+            '-rtsp_transport',
+            'tcp',
             '-i',
             options.url,
             '-f',
             'mpegts',
-            '-vcodec',
+            '-codec:v',
             'mpeg1video',
             ...inputFfmpegArgs,
             '-',
