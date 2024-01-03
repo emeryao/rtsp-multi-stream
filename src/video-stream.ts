@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+// eslint-disable-next-line @typescript-eslint/naming-convention
 import WebSocket, { Server } from 'ws';
 import { Mpeg1Muxer, MuxerOptions } from './mpeg1-muxer';
 
@@ -27,7 +28,7 @@ export class VideoStream extends EventEmitter {
 
     public liveMuxers: Map<string, Mpeg1Muxer> = new Map<string, Mpeg1Muxer>();
 
-    private wsServer?: Server<WebSocketMeta>;
+    private wsServer?: Server;
 
     private readonly options?: StreamOptions;
 
@@ -43,7 +44,7 @@ export class VideoStream extends EventEmitter {
     }
 
     public start(): void {
-        this.wsServer = new Server<WebSocketMeta>({ port: this.options?.wsPort || 9999 });
+        this.wsServer = new Server({ port: this.options?.wsPort || 9999 });
 
         this.wsServer.on('connection', (socket, request) => {
             if (!request.url) { return; }
@@ -53,19 +54,19 @@ export class VideoStream extends EventEmitter {
 
             console.info('Socket connected', request.url);
 
-            socket.id = Date.now().toString();
-            socket.liveUrl = liveUrl;
+            (socket as WebSocketMeta).id = Date.now().toString();
+            (socket as WebSocketMeta).liveUrl = liveUrl;
 
             if (this.liveMuxers.has(liveUrl)) {
                 const muxer: Mpeg1Muxer | undefined = this.liveMuxers.get(liveUrl);
 
                 if (muxer) {
                     const listenerFunc: MpegListener = data => {
-                        socket.send(data);
+                        socket.send(data as Buffer);
                     };
                     muxer.on('mpeg1data', listenerFunc);
 
-                    this.liveMuxerListeners.set(`${liveUrl}-${socket.id}`, listenerFunc);
+                    this.liveMuxerListeners.set(`${liveUrl}-${(socket as WebSocketMeta).id}`, listenerFunc);
                 }
             } else {
                 const muxer: Mpeg1Muxer = new Mpeg1Muxer({ ...this.options, url: liveUrl });
@@ -76,16 +77,20 @@ export class VideoStream extends EventEmitter {
 
                     socket.send(4104);
 
-                    // code should be in [4000,4999] ref https://tools.ietf.org/html/rfc6455#section-7.4.2
-                    socket.close(4104, errMsg);
+                    try {
+                        // code should be in [4000,4999] ref https://tools.ietf.org/html/rfc6455#section-7.4.2
+                        socket.close(4104, errMsg);
+                    } catch {
+                        socket.close(4104, 'fallbackclose');
+                    }
                 });
 
                 const listenerFunc: MpegListener = data => {
-                    socket.send(data);
+                    socket.send(data as Buffer);
                 };
                 muxer.on('mpeg1data', listenerFunc);
 
-                this.liveMuxerListeners.set(`${liveUrl}-${socket.id}`, listenerFunc);
+                this.liveMuxerListeners.set(`${liveUrl}-${(socket as WebSocketMeta).id}`, listenerFunc);
             }
 
             socket.on('close', () => {
@@ -100,8 +105,8 @@ export class VideoStream extends EventEmitter {
                     return;
                 }
 
-                const socketLiveUrl: string = socket.liveUrl;
-                const socketId: string = socket.id;
+                const socketLiveUrl: string = (socket as WebSocketMeta).liveUrl;
+                const socketId: string = (socket as WebSocketMeta).id;
 
                 if (this.liveMuxers.has(socketLiveUrl)) {
                     const muxer: Mpeg1Muxer | undefined = this.liveMuxers.get(socketLiveUrl);
